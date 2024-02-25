@@ -50,6 +50,7 @@ VIRTUAL_HEIGHT = 243
 -- paddle movement speed
 PADDLE_SPEED = 200
 
+TIMER = 0
 --[[
     Called just once at the beginning of the game; used to set up
     game objects, variables, etc. and prepare the game world.
@@ -116,7 +117,7 @@ function love.load()
     gameState = 'start'
 
     -- the mode of the game
-    -- either friend or computer
+    -- either friend or computer or computervscomputer
     gameMode = 'friend'
 end
 
@@ -148,15 +149,36 @@ function love.update(dt)
         else
             ball.dx = -math.random(140, 200)
         end
-    elseif gameState == 'play' then
 
+        if (gameMode == 'computer' and servingPlayer == 2) or (gameMode == 'computervscomputer') then
+            TIMER = TIMER + dt
+            if TIMER > 1 then
+                gameState = 'play'
+                TIMER = 0
+            end
+        end
+
+    elseif gameState == 'play' then
         --[[
             AI-Player 2
             For the Paddle to move itself, we can use the following rules:
             # The top of the paddle musn't be under the bottom of the ball
             # The bottom of the paddle is not over the top of the ball
         ]] 
-        if gameMode == 'computer' then
+        if gameMode == 'computervscomputer' then
+            if ball.dx < 0 then
+                -- ball's estimated future position
+                local future_y = ball.y - ball.x * ball.dy / ball.dx
+                if player1.y > future_y then
+                    player1.dy = -PADDLE_SPEED
+                elseif player1.y + player1.height < future_y then
+                    player1.dy = PADDLE_SPEED
+                else
+                    player1.dy = 0
+                end
+            end
+        end
+        if gameMode == 'computer' or gameMode == 'computervscomputer' then
             -- only move if the ball moves towards player2
             if ball.dx > 0 then
                 -- ball's estimated future position
@@ -170,12 +192,10 @@ function love.update(dt)
                 elseif player2.y + player2.height < future_y then
                     player2.dy = PADDLE_SPEED
                 else 
+                    -- stop moving when ball is returned
                     player2.dy = 0
                 end
             end
-        -- stop moving when ball is returned
-        else
-            player2.dy = 0
         end
         -- detect ball collision with paddles, reversing dx if true and
         -- slightly increasing it, then altering the dy based on the position
@@ -265,12 +285,14 @@ function love.update(dt)
     -- paddles can move no matter what state we're in
     --
     -- player 1
-    if love.keyboard.isDown('w') then
-        player1.dy = -PADDLE_SPEED
-    elseif love.keyboard.isDown('s') then
-        player1.dy = PADDLE_SPEED
-    else
-        player1.dy = 0
+    if gameMode == 'friend' or gameMode == 'computer' then
+        if love.keyboard.isDown('w') then
+            player1.dy = -PADDLE_SPEED
+        elseif love.keyboard.isDown('s') then
+            player1.dy = PADDLE_SPEED
+        else
+            player1.dy = 0
+        end
     end
 
     if gameMode == 'friend' then
@@ -347,6 +369,8 @@ function love.keypressed(key)
         else
             gameMode = 'friend'
         end
+    elseif key == 'q' and gameState == 'start' then
+        gameMode = 'computervscomputer'
     end
 end
 
@@ -365,8 +389,12 @@ function love.draw()
         -- UI messages
         love.graphics.setFont(smallFont)
         love.graphics.printf('Welcome to Pong!', 0, 10, VIRTUAL_WIDTH, 'center')
-        love.graphics.printf('Press "A" to change game mode', 0, 30, VIRTUAL_WIDTH, 'center')
-        love.graphics.printf('Playing against: ' .. gameMode .. '', 0, 40, VIRTUAL_WIDTH, 'center')
+        love.graphics.printf('Press "A" to change game mode or "Q" to see the computer play against itself', 0, 30, VIRTUAL_WIDTH, 'center')
+        if gameMode == 'friend' or gameMode == 'computer' then 
+            love.graphics.printf('Playing against: ' .. gameMode .. '', 0, 40, VIRTUAL_WIDTH, 'center')
+        else
+            love.graphics.printf('Computer vs Computer', 0, 40, VIRTUAL_WIDTH, 'center')
+        end
         love.graphics.printf('Press Enter to begin!', 0, 55, VIRTUAL_WIDTH, 'center')
     elseif gameState == 'serve' then
         -- UI messages
