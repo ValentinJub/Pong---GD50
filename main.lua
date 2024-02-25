@@ -50,7 +50,10 @@ VIRTUAL_HEIGHT = 243
 -- paddle movement speed
 PADDLE_SPEED = 200
 
-TIMER = 0
+-- speed coefficient
+SPEED_INCREASE = 1.03
+
+SERVE_TIMER = 0
 --[[
     Called just once at the beginning of the game; used to set up
     game objects, variables, etc. and prepare the game world.
@@ -150,17 +153,18 @@ function love.update(dt)
             ball.dx = -math.random(140, 200)
         end
 
+        -- allows the computer to serve after a delay
         if (gameMode == 'computer' and servingPlayer == 2) or (gameMode == 'computervscomputer') then
-            TIMER = TIMER + dt
-            if TIMER > 1 then
+            SERVE_TIMER = SERVE_TIMER + dt
+            if SERVE_TIMER > 1 then
                 gameState = 'play'
-                TIMER = 0
+                SERVE_TIMER = 0
             end
         end
 
     elseif gameState == 'play' then
         --[[
-            AI-Player 2
+            AI-Player
             For the Paddle to move itself, we can use the following rules:
             # The top of the paddle musn't be under the bottom of the ball
             # The bottom of the paddle is not over the top of the ball
@@ -201,7 +205,12 @@ function love.update(dt)
         -- slightly increasing it, then altering the dy based on the position
         -- at which it collided, then playing a sound effect
         if ball:collides(player1) then
-            ball.dx = -ball.dx * 1.03
+            if gameMode == 'computervscomputer' then
+                ball.dx = -ball.dx * (SPEED_INCREASE * 1.1)
+                PADDLE_SPEED = PADDLE_SPEED * SPEED_INCREASE
+            else
+                ball.dx = -ball.dx * SPEED_INCREASE
+            end
             ball.x = player1.x + 5
 
             -- keep velocity going in the same direction, but randomize it
@@ -214,7 +223,12 @@ function love.update(dt)
             sounds['paddle_hit']:play()
         end
         if ball:collides(player2) then
-            ball.dx = -ball.dx * 1.03
+            if gameMode == 'computervscomputer' then
+                ball.dx = -ball.dx * (SPEED_INCREASE * 1.1)
+                PADDLE_SPEED = PADDLE_SPEED * SPEED_INCREASE
+            else
+                ball.dx = -ball.dx * SPEED_INCREASE
+            end
             ball.x = player2.x - 4
 
             -- keep velocity going in the same direction, but randomize it
@@ -258,6 +272,8 @@ function love.update(dt)
                 gameState = 'serve'
                 -- places the ball in the middle of the screen, no velocity
                 ball:reset()
+                -- reset paddle_speed
+                PADDLE_SPEED = 200
             end
         end
 
