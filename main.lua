@@ -114,6 +114,10 @@ function love.load()
     -- 3. 'play' (the ball is in play, bouncing between paddles)
     -- 4. 'done' (the game is over, with a victor, ready for restart)
     gameState = 'start'
+
+    -- the mode of the game
+    -- either friend or computer
+    gameMode = 'friend'
 end
 
 --[[
@@ -145,6 +149,34 @@ function love.update(dt)
             ball.dx = -math.random(140, 200)
         end
     elseif gameState == 'play' then
+
+        --[[
+            AI-Player 2
+            For the Paddle to move itself, we can use the following rules:
+            # The top of the paddle musn't be under the bottom of the ball
+            # The bottom of the paddle is not over the top of the ball
+        ]] 
+        if gameMode == 'computer' then
+            -- only move if the ball moves towards player2
+            if ball.dx > 0 then
+                -- ball's estimated future position
+                local future_y = ball.y + (VIRTUAL_WIDTH - ball.x) * ball.dy / ball.dx
+                -- if player2's top paddle is under the ball destination
+                -- go up
+                if player2.y > future_y then
+                    player2.dy = -PADDLE_SPEED
+                -- if player2's bottom paddle is above the ball destination
+                -- go down
+                elseif player2.y + player2.height < future_y then
+                    player2.dy = PADDLE_SPEED
+                else 
+                    player2.dy = 0
+                end
+            end
+        -- stop moving when ball is returned
+        else
+            player2.dy = 0
+        end
         -- detect ball collision with paddles, reversing dx if true and
         -- slightly increasing it, then altering the dy based on the position
         -- at which it collided, then playing a sound effect
@@ -241,13 +273,15 @@ function love.update(dt)
         player1.dy = 0
     end
 
-    -- player 2
-    if love.keyboard.isDown('up') then
-        player2.dy = -PADDLE_SPEED
-    elseif love.keyboard.isDown('down') then
-        player2.dy = PADDLE_SPEED
-    else
-        player2.dy = 0
+    if gameMode == 'friend' then
+        -- player 2 
+        if love.keyboard.isDown('up') then
+            player2.dy = -PADDLE_SPEED
+        elseif love.keyboard.isDown('down') then
+            player2.dy = PADDLE_SPEED
+        else
+            player2.dy = 0
+        end
     end
 
     -- update our ball based on its DX and DY only if we're in play state;
@@ -269,8 +303,18 @@ end
 function love.keypressed(key)
     -- `key` will be whatever key this callback detected as pressed
     if key == 'escape' then
-        -- the function LÖVE2D uses to quit the application
-        love.event.quit()
+        -- depending on the context the esc key will have different behaviour
+        -- we return to the menu if we're playing
+        if gameState == 'play' or gameState == 'serve' then
+            ball:reset()
+            -- reset scores to 0
+            player1Score = 0
+            player2Score = 0
+            gameState = 'start' 
+        else
+            -- the function LÖVE2D uses to quit the application
+            love.event.quit()
+        end
     -- if we press enter during either the start or serve phase, it should
     -- transition to the next appropriate state
     elseif key == 'enter' or key == 'return' then
@@ -296,6 +340,13 @@ function love.keypressed(key)
                 servingPlayer = 1
             end
         end
+    -- if we press A on the menu, change gameMode
+    elseif key == 'a' and gameState == 'start' then
+        if gameMode == 'friend' then
+            gameMode = 'computer' 
+        else
+            gameMode = 'friend'
+        end
     end
 end
 
@@ -314,7 +365,9 @@ function love.draw()
         -- UI messages
         love.graphics.setFont(smallFont)
         love.graphics.printf('Welcome to Pong!', 0, 10, VIRTUAL_WIDTH, 'center')
-        love.graphics.printf('Press Enter to begin!', 0, 20, VIRTUAL_WIDTH, 'center')
+        love.graphics.printf('Press "A" to change game mode', 0, 30, VIRTUAL_WIDTH, 'center')
+        love.graphics.printf('Playing against: ' .. gameMode .. '', 0, 40, VIRTUAL_WIDTH, 'center')
+        love.graphics.printf('Press Enter to begin!', 0, 55, VIRTUAL_WIDTH, 'center')
     elseif gameState == 'serve' then
         -- UI messages
         love.graphics.setFont(smallFont)
